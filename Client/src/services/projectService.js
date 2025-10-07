@@ -5,6 +5,10 @@ export const projectService = {
     const res = await api.get('/api/projects', { params })
     return res.data
   },
+  async getProjectsList(params = {}) {
+    const res = await api.get('/api/projects/list', { params })
+    return res.data
+  },
   async createProject(data) {
     const res = await api.post('/api/projects', data)
     return res.data

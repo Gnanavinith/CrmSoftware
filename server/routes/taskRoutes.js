@@ -6,24 +6,30 @@ import {
   updateTask, 
   deleteTask,
   addComment,
-  updateTaskStatus
+  updateTaskStatus,
+  getMyTasks,
+  logTime,
+  getProjectTasks
 } from '../controllers/taskController.js'
 import auth from '../middleware/auth.js'
+import { requireEmployee, requireManager, requireAdmin } from '../middleware/roleAuth.js'
 
 const router = express.Router()
 
-// All routes require authentication
-router.use(auth)
+// Employee Access
+router.get('/my-tasks', auth, requireEmployee, getMyTasks)
+router.get('/:id', auth, requireEmployee, getTask)
+router.patch('/:id/status', auth, requireEmployee, updateTaskStatus)
+router.post('/:id/comments', auth, requireEmployee, addComment)
+router.post('/:id/time', auth, requireEmployee, logTime)
 
-// Task routes
-router.get('/', getTasks)
-router.get('/:id', getTask)
-router.post('/', createTask)
-router.put('/:id', updateTask)
-router.delete('/:id', deleteTask)
+// Manager & Admin Access
+router.get('/', auth, requireManager, getTasks) // View all tasks
+router.post('/', auth, requireManager, createTask)
+router.put('/:id', auth, requireManager, updateTask)
+router.get('/project/:projectId', auth, requireManager, getProjectTasks)
 
-// Additional task operations
-router.post('/:id/comments', addComment)
-router.patch('/:id/status', updateTaskStatus)
+// Admin Only Access
+router.delete('/:id', auth, requireAdmin, deleteTask)
 
 export default router

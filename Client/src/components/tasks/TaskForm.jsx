@@ -46,14 +46,27 @@ const TaskForm = ({ onTaskAdded, editTask, onCancel }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('TaskForm: Fetching projects and users data...');
+        
         const [projectsRes, usersRes] = await Promise.all([
-          projectService.getProjects({ limit: 100 }),
-          userService.getTeamMembers()
+          projectService.getProjectsList({ limit: 100 }),
+          userService.getUsersList({ limit: 100 })
         ]);
+        
+        console.log('TaskForm: Projects response:', projectsRes);
+        console.log('TaskForm: Users response:', usersRes);
+        
         setProjects(projectsRes.projects || []);
-        setUsers(usersRes || []);
+        setUsers(usersRes.users || []);
+        
+        console.log('TaskForm: Set projects:', projectsRes.projects?.length || 0);
+        console.log('TaskForm: Set users:', usersRes.users?.length || 0);
+        
+        toast.success(`Loaded ${projectsRes.projects?.length || 0} projects and ${usersRes.users?.length || 0} users`);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('TaskForm: Error fetching data:', error);
+        console.error('TaskForm: Error response:', error.response?.data);
+        toast.error('Failed to load projects and users data: ' + (error.response?.data?.message || error.message));
       }
     };
     fetchData();
@@ -238,7 +251,7 @@ const TaskForm = ({ onTaskAdded, editTask, onCancel }) => {
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 >
-                  <option value="">Select Project</option>
+                  <option value="">Select Project ({projects.length} available)</option>
                   {projects.map(project => (
                     <option key={project._id} value={project._id}>{project.name}</option>
                   ))}
@@ -255,9 +268,9 @@ const TaskForm = ({ onTaskAdded, editTask, onCancel }) => {
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 >
-                  <option value="">Select Assignee</option>
+                  <option value="">Select Assignee ({users.length} available)</option>
                   {users.map(user => (
-                    <option key={user._id} value={user._id}>{user.name}</option>
+                    <option key={user._id} value={user._id}>{user.name} ({user.role})</option>
                   ))}
                 </select>
               </div>

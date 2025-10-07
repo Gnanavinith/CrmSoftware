@@ -2,7 +2,7 @@ import { api } from './api'
 
 export const attendanceService = {
   async getMyAttendance(startDate, endDate) {
-    const res = await api.get('/api/attendance/me', { params: { startDate, endDate } })
+    const res = await api.get('/api/attendance/my-attendance', { params: { startDate, endDate } })
     return res.data
   },
   async checkIn({ note, location } = {}) {

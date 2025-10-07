@@ -5,6 +5,10 @@ export const userService = {
     const res = await api.get('/api/users', { params })
     return res.data
   },
+  async getUsersList(params = {}) {
+    const res = await api.get('/api/users/list', { params })
+    return res.data
+  },
   async getUser(id) {
     const res = await api.get(`/api/users/${id}`)
     return res.data
@@ -14,7 +18,7 @@ export const userService = {
     return res.data
   },
   async getTeamMembers() {
-    const res = await api.get('/api/users/team')
+    const res = await api.get('/api/users')
     return res.data
   }
 }

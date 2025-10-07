@@ -6,8 +6,10 @@ const UserSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, index: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['employee', 'admin'], default: 'employee' },
-    position: { type: String, default: 'Employee' }
+    role: { type: String, enum: ['employee', 'manager', 'admin'], default: 'employee' },
+    position: { type: String, default: 'Employee' },
+    manager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    team: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
   },
   { timestamps: true }
 )
