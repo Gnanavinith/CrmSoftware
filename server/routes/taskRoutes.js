@@ -23,8 +23,8 @@ router.patch('/:id/status', auth, requireEmployee, updateTaskStatus)
 router.post('/:id/comments', auth, requireEmployee, addComment)
 router.post('/:id/time', auth, requireEmployee, logTime)
 
-// Manager & Admin Access
-router.get('/', auth, requireManager, getTasks) // View all tasks
+// All authenticated users can access tasks (with role-based filtering)
+router.get('/', auth, getTasks) // View tasks (filtered by role)
 router.post('/', auth, requireManager, createTask)
 router.put('/:id', auth, requireManager, updateTask)
 router.get('/project/:projectId', auth, requireManager, getProjectTasks)

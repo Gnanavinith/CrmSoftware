@@ -29,10 +29,14 @@ const Tasks = () => {
         limit: 100
       };
       
+      console.log('🔍 Fetching tasks with params:', params);
       const response = await taskService.getTasks(params);
+      console.log('📊 Tasks API response:', response);
+      console.log('📋 Tasks received:', response.tasks?.length || 0);
       setTasks(response.tasks || []);
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      console.error('❌ Error fetching tasks:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
       toast.error('Failed to load tasks');
     } finally {
       setLoading(false);

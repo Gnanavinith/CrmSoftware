@@ -6,17 +6,33 @@ export default function AttendanceForm({ onAttendanceUpdate, todayAttendance }) 
   const isCheckedIn = useMemo(() => !!todayAttendance?.checkIn && !todayAttendance?.checkOut, [todayAttendance])
 
   const handleCheckIn = async () => {
-    await attendanceService.checkIn({ note })
     try {
-      localStorage.setItem('onboardingComplete', 'true')
-    } catch {}
-    setNote('')
-    onAttendanceUpdate?.()
+      console.log('🔍 Attempting check-in with note:', note)
+      const result = await attendanceService.checkIn({ note })
+      console.log('✅ Check-in successful:', result)
+      try {
+        localStorage.setItem('onboardingComplete', 'true')
+      } catch {}
+      setNote('')
+      onAttendanceUpdate?.()
+    } catch (error) {
+      console.error('❌ Check-in failed:', error)
+      console.error('❌ Error details:', error.response?.data || error.message)
+      alert('Check-in failed: ' + (error.response?.data?.message || error.message))
+    }
   }
 
   const handleCheckOut = async () => {
-    await attendanceService.checkOut()
-    onAttendanceUpdate?.()
+    try {
+      console.log('🔍 Attempting check-out')
+      const result = await attendanceService.checkOut()
+      console.log('✅ Check-out successful:', result)
+      onAttendanceUpdate?.()
+    } catch (error) {
+      console.error('❌ Check-out failed:', error)
+      console.error('❌ Error details:', error.response?.data || error.message)
+      alert('Check-out failed: ' + (error.response?.data?.message || error.message))
+    }
   }
 
   return (

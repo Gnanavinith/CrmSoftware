@@ -6,6 +6,7 @@ import { projectService } from '../services/projectService'
 import { clientService } from '../services/clientService'
 import { attendanceService } from '../services/attendanceService'
 import { userService } from '../services/userService'
+import toast from 'react-hot-toast'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -16,14 +17,62 @@ export default function Dashboard() {
     attendance: { todayHours: 0, thisWeekHours: 0, status: 'Not checked in' },
     recentTasks: [],
     recentProjects: [],
-    teamMembers: 0
+    teamMembers: 0,
+    teamData: [], // Team members details
+    teamAttendance: [], // All team attendance
+    teamStats: { totalEmployees: 0, presentToday: 0, absentToday: 0 }
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     fetchDashboardData()
+    
+    // Refresh dashboard data every 30 seconds for real-time updates
+    const interval = setInterval(() => {
+      fetchDashboardData()
+    }, 30000) // 30 seconds
+    
+    return () => clearInterval(interval)
   }, [])
+
+  const handleCheckIn = async () => {
+    try {
+      console.log('🔍 Dashboard: Attempting check-in')
+      console.log('🔍 Dashboard: User role:', user?.role)
+      console.log('🔍 Dashboard: User data:', user)
+      const result = await attendanceService.checkIn({ note: 'Checked in from dashboard', location: 'Office' })
+      console.log('✅ Dashboard: Check-in successful:', result)
+      
+      // Refresh dashboard data immediately to show updated status
+      await fetchDashboardData()
+      
+      // Show success message
+      toast.success('Successfully checked in!')
+    } catch (error) {
+      console.error('❌ Dashboard: Check-in failed:', error)
+      console.error('❌ Error details:', error.response?.data || error.message)
+      toast.error('Check-in failed: ' + (error.response?.data?.message || error.message))
+    }
+  }
+
+  const handleCheckOut = async () => {
+    try {
+      console.log('🔍 Dashboard: Attempting check-out')
+      const result = await attendanceService.checkOut()
+      console.log('✅ Dashboard: Check-out successful:', result)
+      
+      // Refresh dashboard data immediately to show updated status
+      await fetchDashboardData()
+      
+      // Show success message
+      toast.success('Successfully checked out!')
+    } catch (error) {
+      console.error('❌ Dashboard: Check-out failed:', error)
+      console.error('❌ Error details:', error.response?.data || error.message)
+      toast.error('Check-out failed: ' + (error.response?.data?.message || error.message))
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
@@ -33,19 +82,23 @@ export default function Dashboard() {
       weekStart.setDate(weekStart.getDate() - weekStart.getDay())
       const weekStartStr = weekStart.toISOString().split('T')[0]
 
-      // Fetch all data in parallel with individual error handling
+      // Fetch data based on user role
+      const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager'
+      
       const [
         tasksRes,
         projectsRes,
         clientsRes,
         attendanceRes,
-        teamRes
+        teamRes,
+        teamAttendanceRes
       ] = await Promise.allSettled([
         taskService.getTasks(),
         projectService.getProjects(),
         clientService.getClients(),
         attendanceService.getMyAttendance(weekStartStr, today),
-        userService.getTeamMembers()
+        userService.getTeamMembers(),
+        isAdminOrManager ? attendanceService.getAllAttendance(weekStartStr, today) : Promise.resolve({ data: [] })
       ])
 
       // Handle individual API responses with error checking
@@ -53,7 +106,10 @@ export default function Dashboard() {
       const projects = projectsRes.status === 'fulfilled' ? (projectsRes.value.projects || []) : []
       const clients = clientsRes.status === 'fulfilled' ? (clientsRes.value.clients || []) : []
       const attendance = attendanceRes.status === 'fulfilled' ? (attendanceRes.value.data || []) : []
-      const teamMembers = teamRes.status === 'fulfilled' ? (teamRes.value || []) : []
+      console.log('📊 Attendance data:', attendance)
+      console.log('📊 Attendance response:', attendanceRes)
+      const teamMembers = teamRes.status === 'fulfilled' ? (teamRes.value.users || teamRes.value || []) : []
+      const teamAttendance = teamAttendanceRes.status === 'fulfilled' ? (teamAttendanceRes.value.data || []) : []
 
       // Log any failed requests for debugging
       if (tasksRes.status === 'rejected') console.warn('Failed to fetch tasks:', tasksRes.reason)
@@ -61,6 +117,7 @@ export default function Dashboard() {
       if (clientsRes.status === 'rejected') console.warn('Failed to fetch clients:', clientsRes.reason)
       if (attendanceRes.status === 'rejected') console.warn('Failed to fetch attendance:', attendanceRes.reason)
       if (teamRes.status === 'rejected') console.warn('Failed to fetch team members:', teamRes.reason)
+      if (teamAttendanceRes.status === 'rejected') console.warn('Failed to fetch team attendance:', teamAttendanceRes.reason)
 
       // Calculate task metrics
       const completedTasks = tasks.filter(task => task.status === 'completed').length
@@ -101,6 +158,8 @@ export default function Dashboard() {
         const recordDate = new Date(record.date).toISOString().split('T')[0]
         return recordDate === today
       })
+      console.log('📊 Today record:', todayRecord)
+      console.log('📊 Today date:', today)
       let attendanceStatus = 'Not checked in'
       if (todayRecord) {
         if (todayRecord.checkIn && !todayRecord.checkOut) {
@@ -109,6 +168,7 @@ export default function Dashboard() {
           attendanceStatus = 'Checked out'
         }
       }
+      console.log('📊 Calculated attendance status:', attendanceStatus)
 
       // Get recent tasks and projects
       const recentTasks = tasks
@@ -118,6 +178,28 @@ export default function Dashboard() {
       const recentProjects = projects
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 5)
+
+      // Calculate team statistics (for admin/manager)
+      let teamStats = { totalEmployees: 0, presentToday: 0, absentToday: 0, completedToday: 0 }
+      if (isAdminOrManager) {
+        const todayAttendance = teamAttendance.filter(record => {
+          const recordDate = new Date(record.date).toISOString().split('T')[0]
+          const todayDate = new Date().toISOString().split('T')[0]
+          return recordDate === todayDate
+        })
+        
+        console.log('📊 Team attendance for today:', todayAttendance)
+        console.log('📊 Team members:', teamMembers.map(m => ({ name: m.name, id: m._id })))
+        
+        const presentToday = todayAttendance.filter(record => record.checkIn && !record.checkOut).length
+        const completedToday = todayAttendance.filter(record => record.checkIn && record.checkOut).length
+        const totalEmployees = teamMembers.length
+        const absentToday = totalEmployees - presentToday - completedToday
+        
+        console.log('📊 Team stats calculation:', { presentToday, completedToday, absentToday, totalEmployees })
+        
+        teamStats = { totalEmployees, presentToday, absentToday, completedToday }
+      }
 
       setDashboardData({
         tasks: {
@@ -142,7 +224,10 @@ export default function Dashboard() {
         },
         recentTasks,
         recentProjects,
-        teamMembers: teamMembers.length
+        teamMembers: teamMembers.length,
+        teamData: teamMembers,
+        teamAttendance: teamAttendance,
+        teamStats
       })
     } catch (err) {
       console.error('Error fetching dashboard data:', err)
@@ -259,6 +344,81 @@ export default function Dashboard() {
           color="orange"
         />
       </div>
+
+      {/* Employee Check-in/Check-out Section */}
+      {user?.role === 'employee' && (
+        <div className="bg-white rounded-lg shadow border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900">Today's Attendance</h2>
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center space-x-4">
+                  <div className={`w-4 h-4 rounded-full ${
+                    dashboardData.attendance.status === 'Checked in' ? 'bg-green-500' :
+                    dashboardData.attendance.status === 'Checked out' ? 'bg-blue-500' :
+                    'bg-gray-400'
+                  }`}></div>
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Status: {dashboardData.attendance.status}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {dashboardData.attendance.todayHours > 0 
+                        ? `Hours worked today: ${dashboardData.attendance.todayHours}h`
+                        : 'No hours logged today'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                {(() => {
+                  console.log('🔍 Dashboard: Rendering button section')
+                  console.log('🔍 Dashboard: Current status:', dashboardData.attendance.status)
+                  console.log('🔍 Dashboard: User role:', user?.role)
+                  
+                  if (dashboardData.attendance.status === 'Not checked in') {
+                    console.log('🔍 Dashboard: Rendering Check In button')
+                    return (
+                      <button
+                        onClick={handleCheckIn}
+                        className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span>Check In</span>
+                      </button>
+                    )
+                  } else if (dashboardData.attendance.status === 'Checked in') {
+                    console.log('🔍 Dashboard: Rendering Check Out button')
+                    return (
+                      <button
+                        onClick={handleCheckOut}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span>Check Out</span>
+                      </button>
+                    )
+                  } else {
+                    console.log('🔍 Dashboard: Rendering completed message')
+                    return (
+                      <div className="text-sm text-gray-500">
+                        Work day completed
+                      </div>
+                    )
+                  }
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Alerts */}
       {dashboardData.tasks.overdue > 0 && (
@@ -382,6 +542,127 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Team Overview - Admin/Manager Only */}
+      {(user?.role === 'admin' || user?.role === 'manager') && (
+        <div className="bg-white rounded-lg shadow border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 className="text-lg font-medium text-gray-900">Team Overview</h2>
+            <button
+              onClick={fetchDashboardData}
+              className="flex items-center px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{dashboardData.teamStats.totalEmployees}</div>
+                <div className="text-sm text-gray-600">Total Employees</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{dashboardData.teamStats.presentToday}</div>
+                <div className="text-sm text-gray-600">Present Today</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-500">{dashboardData.teamStats.completedToday || 0}</div>
+                <div className="text-sm text-gray-600">Completed Today</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{dashboardData.teamStats.absentToday}</div>
+                <div className="text-sm text-gray-600">Absent Today</div>
+              </div>
+            </div>
+            
+            {/* Team Members List */}
+            <div className="mt-6">
+              <h3 className="text-md font-medium text-gray-900 mb-4">Team Members</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dashboardData.teamData.map((member) => {
+                  const todayRecord = dashboardData.teamAttendance.find(record => {
+                    const recordDate = new Date(record.date).toISOString().split('T')[0]
+                    const todayDate = new Date().toISOString().split('T')[0]
+                    const userMatch = record.user?._id === member._id || record.user === member._id
+                    return userMatch && recordDate === todayDate
+                  })
+                  const isPresent = todayRecord && todayRecord.checkIn && !todayRecord.checkOut
+                  const isCheckedOut = todayRecord && todayRecord.checkIn && todayRecord.checkOut
+                  const checkInTime = todayRecord?.checkIn ? new Date(todayRecord.checkIn).toLocaleTimeString() : null
+                  const checkOutTime = todayRecord?.checkOut ? new Date(todayRecord.checkOut).toLocaleTimeString() : null
+                  
+                  // Debug logging for gnanavinith specifically
+                  if (member.name.toLowerCase().includes('gnanavinith') || member.email.includes('gnanavinith')) {
+                    console.log('🔍 Gnanavinith status:', {
+                      name: member.name,
+                      email: member.email,
+                      todayRecord,
+                      isPresent,
+                      isCheckedOut,
+                      checkInTime,
+                      checkOutTime
+                    })
+                  }
+                  
+                  return (
+                    <div key={member._id} className={`flex items-center p-4 rounded-lg border-2 transition-all duration-200 ${
+                      isPresent && !isCheckedOut 
+                        ? 'bg-green-50 border-green-200 shadow-sm' 
+                        : isCheckedOut 
+                        ? 'bg-blue-50 border-blue-200 shadow-sm'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium ${
+                        isPresent && !isCheckedOut 
+                          ? 'bg-green-500' 
+                          : isCheckedOut 
+                          ? 'bg-blue-500'
+                          : 'bg-gray-400'
+                      }`}>
+                        {member.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="ml-3 flex-1">
+                        <h4 className="text-sm font-medium text-gray-900">{member.name}</h4>
+                        <p className="text-xs text-gray-600">{member.email}</p>
+                        <p className="text-xs text-gray-500">{member.position}</p>
+                        {isPresent && (
+                          <div className="mt-1 text-xs">
+                            {checkInTime && (
+                              <span className="text-green-600">✓ Checked in: {checkInTime}</span>
+                            )}
+                            {checkOutTime && (
+                              <span className="text-blue-600 ml-2">✓ Checked out: {checkOutTime}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="ml-2 flex flex-col items-end">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          isPresent && !isCheckedOut 
+                            ? 'bg-green-100 text-green-800' 
+                            : isCheckedOut 
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {isPresent && !isCheckedOut ? 'Present' : isCheckedOut ? 'Completed' : 'Absent'}
+                        </span>
+                        {isPresent && todayRecord?.durationMinutes && (
+                          <span className="text-xs text-gray-500 mt-1">
+                            {Math.floor(todayRecord.durationMinutes / 60)}h {todayRecord.durationMinutes % 60}m
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Weekly Summary */}
       <div className="bg-white rounded-lg shadow border border-gray-200">
