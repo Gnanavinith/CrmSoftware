@@ -16,7 +16,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/Final-crm'
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://vinithvini775:vinithvini775@thetee.2nn0l55.mongodb.net/TheTee?retryWrites=true&w=majority&appName=TheTee'
 mongoose
   .connect(MONGO_URI, { dbName: 'Final-crm' })
   .then(() => console.log('MongoDB connected'))
