@@ -32,9 +32,14 @@ app.use('/api/clients', clientRoutes)
 app.use('/api/projects', projectRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/tasks', taskRoutes)
-app.use('/api/notifications', notificationRoutes)
+app.use('/api/notifications', notificationRoutes);
 
-const PORT = process.env.PORT || 5000
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+// Add this 👇
+app.get("/", (req, res) => {
+  res.send("✅ CRM Server is running successfully!");
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 
