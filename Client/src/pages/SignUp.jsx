@@ -1,28 +1,57 @@
 import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Link, useNavigate } from 'react-router-dom'
+import OTPVerification from '../components/OTPVerification'
 
 export default function SignUp() {
-  const { register } = useAuth()
+  const { sendRegistrationOTP, verifyRegistrationOTP } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('Demo User')
   const [email, setEmail] = useState('demo@example.com')
   const [password, setPassword] = useState('password')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showOTP, setShowOTP] = useState(false)
+  const [registrationData, setRegistrationData] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      await register({ name, email, password })
-      navigate('/dashboard')
+      await sendRegistrationOTP({ name, email, password })
+      setRegistrationData({ name, email, password })
+      setShowOTP(true)
     } catch (err) {
-      setError(err?.message || 'Failed to sign up')
+      setError(err.response?.data?.message || 'Failed to send OTP')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOTPVerification = async (otpData) => {
+    try {
+      await verifyRegistrationOTP({ ...registrationData, otp: otpData.otp })
+      navigate('/dashboard')
+    } catch (err) {
+      console.error('OTP verification failed:', err)
+    }
+  }
+
+  const handleBackToRegistration = () => {
+    setShowOTP(false)
+    setRegistrationData(null)
+    setError('')
+  }
+
+  if (showOTP) {
+    return (
+      <OTPVerification
+        email={email}
+        onVerificationSuccess={handleOTPVerification}
+        onBack={handleBackToRegistration}
+      />
+    )
   }
 
   return (
@@ -67,7 +96,7 @@ export default function SignUp() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md disabled:opacity-50"
           >
-            {loading ? 'Creating account...' : 'Sign up'}
+            {loading ? 'Sending OTP...' : 'Send verification code'}
           </button>
         </form>
         <p className="text-sm text-gray-600 mt-4 text-center">

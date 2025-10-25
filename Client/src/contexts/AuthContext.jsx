@@ -24,6 +24,27 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  const sendRegistrationOTP = async ({ name, email, password }) => {
+    const res = await api.post('/api/auth/send-otp', { name, email, password })
+    return res.data
+  }
+
+  const verifyRegistrationOTP = async ({ name, email, password, otp }) => {
+    const res = await api.post('/api/auth/verify-otp', { name, email, password, otp })
+    const { token, user: u } = res.data
+    localStorage.setItem('token', token)
+    localStorage.setItem('authUser', JSON.stringify(u))
+    localStorage.setItem('onboardingComplete', 'false')
+    api.defaults.headers.common.Authorization = `Bearer ${token}`
+    setUser(u)
+    return res.data
+  }
+
+  const resendRegistrationOTP = async ({ email }) => {
+    const res = await api.post('/api/auth/resend-otp', { email })
+    return res.data
+  }
+
   const register = async ({ name, email, password }) => {
     const res = await api.post('/api/auth/register', { name, email, password })
     const { token, user: u } = res.data
@@ -55,7 +76,15 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  const value = useMemo(() => ({ user, register, login, logout }), [user])
+  const value = useMemo(() => ({ 
+    user, 
+    register, 
+    login, 
+    logout, 
+    sendRegistrationOTP, 
+    verifyRegistrationOTP, 
+    resendRegistrationOTP 
+  }), [user])
 
   return (
     <AuthContext.Provider value={value}>
