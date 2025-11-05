@@ -16,6 +16,8 @@ import Profile from './pages/Profile'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 import RoleSelect from './pages/RoleSelect'
+import Reports from './pages/Reports'
+import Settings from './pages/Settings'
 
 function App() {
   const { user } = useAuth()
@@ -56,6 +58,8 @@ function App() {
                       <Route path="/projects/add" element={<AddProject />} />
                       <Route path="/tasks" element={<Tasks />} />
                       <Route path="/tasks/add" element={<AddTask />} />
+                      <Route path="/reports" element={<Reports />} />
+                      <Route path="/settings" element={<Settings />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="*" element={<div className="text-gray-600">Not Found</div>} />
                     </Routes>
