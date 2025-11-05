@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import ProjectCard from '../components/projects/ProjectCard';
-import ProjectForm from '../components/projects/ProjectForm';
 import ProjectDetails from '../components/projects/ProjectDetails';
 import { projectService } from '../services/projectService';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Projects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editProject, setEditProject] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
+  const navigate = useNavigate();
 
   const fetchProjects = async () => {
     try {
@@ -43,8 +42,8 @@ const Projects = () => {
   }, [searchTerm, statusFilter, priorityFilter]);
 
   const handleEdit = (project) => {
-    setEditProject(project);
-    setShowForm(true);
+    // Navigate to edit page
+    navigate(`/projects/${project._id}/edit`);
   };
 
   const handleDelete = async (projectId) => {
@@ -64,16 +63,6 @@ const Projects = () => {
     setShowDetails(true);
   };
 
-  const handleProjectAdded = () => {
-    setShowForm(false);
-    setEditProject(null);
-    fetchProjects();
-  };
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditProject(null);
-  };
 
   const handleCloseDetails = () => {
     setShowDetails(false);
@@ -112,7 +101,7 @@ const Projects = () => {
         </div>
         
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => navigate('/projects/add')}
           className="mt-4 sm:mt-0 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,16 +170,6 @@ const Projects = () => {
         </div>
       </div>
 
-      {/* Project Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <ProjectForm
-            onProjectAdded={handleProjectAdded}
-            editProject={editProject}
-            onCancel={handleCancel}
-          />
-        </div>
-      )}
 
       {/* Project Details Modal */}
       {showDetails && selectedProject && (

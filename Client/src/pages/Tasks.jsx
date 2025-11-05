@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import TaskCard from '../components/tasks/TaskCard';
 import TaskForm from '../components/tasks/TaskForm';
 import TaskDetails from '../components/tasks/TaskDetails';
@@ -6,6 +7,7 @@ import { taskService } from '../services/taskService';
 import toast from 'react-hot-toast';
 
 const Tasks = () => {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -153,7 +155,7 @@ const Tasks = () => {
         </div>
         
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => navigate('/tasks/add')}
           className="mt-4 sm:mt-0 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -392,7 +394,7 @@ const Tasks = () => {
           </p>
           {!searchTerm && statusFilter === 'all' && priorityFilter === 'all' && (
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => navigate('/tasks/add')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
             >
               Create Your First Task
